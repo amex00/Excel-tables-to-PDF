@@ -1,6 +1,6 @@
 import xlwings as xw
 
-# Load the workbook and sheet. Replace with the name of your Excel file
+# Load the workbook and sheet
 excel_file = 'your_excel_file.xlsx'
 wb = xw.Book(excel_file)
 
@@ -8,28 +8,34 @@ wb = xw.Book(excel_file)
 sheet_name = 'CorrectSheetName'
 sheet = wb.sheets[sheet_name]
 
-# Function to check if a range is empty
-def is_range_empty(sheet, start_row, end_row):
-    values = sheet.range((start_row, 1), (end_row, sheet.cells(start_row, 1).end('right').column)).value
-    return all(all(cell is None for cell in row) for row in values)
-
 # Function to export a range to PDF
 def export_range_to_pdf(sheet, start_row, end_row, pdf_path):
-    if not is_range_empty(sheet, start_row, end_row):
-        sheet.range((start_row, 1), (end_row, sheet.cells(start_row, 1).end('right').column)).api.ExportAsFixedFormat(0, pdf_path)
-    else:
-        print(f"Skipping empty range {start_row} to {end_row}")
+    sheet.range((start_row, 1), (end_row, sheet.cells(start_row, 1).end('right').column)).api.ExportAsFixedFormat(0, pdf_path)
 
-# Function to extract tables as fixed number of rows and export them to PDFs
-def extract_and_export_tables(sheet, rows_per_table=28):
-    total_rows = sheet.cells.last_cell.row
+# Function to extract tables based on two empty rows and export them to PDFs
+def extract_and_export_tables(sheet):
     current_table_start = 1
+    empty_row_count = 0
+    row = 1
 
-    while current_table_start <= total_rows:
-        current_table_end = min(current_table_start + rows_per_table - 1, total_rows)
-        pdf_path = f'table_{current_table_start}_{current_table_end}.pdf'
-        export_range_to_pdf(sheet, current_table_start, current_table_end, pdf_path)
-        current_table_start = current_table_end + 1
+    while True:
+        row_values = sheet.range(f'{row}:{row}').value
+        if row_values is None or all(cell is None for cell in row_values):
+            empty_row_count += 1
+        else:
+            empty_row_count = 0
+
+        if empty_row_count == 2:
+            export_range_to_pdf(sheet, current_table_start, row - 2, f'table_{current_table_start}_{row - 2}.pdf')
+            current_table_start = row + 1
+            empty_row_count = 0
+
+        row += 1
+        if row > sheet.cells.last_cell.row:
+            break
+
+    if current_table_start <= sheet.cells.last_cell.row:
+        export_range_to_pdf(sheet, current_table_start, sheet.cells.last_cell.row, f'table_{current_table_start}_{sheet.cells.last_cell.row}.pdf')
 
 # Run the function
 extract_and_export_tables(sheet)
