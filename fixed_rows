@@ -1,0 +1,38 @@
+import xlwings as xw
+
+# Load the workbook and sheet
+excel_file = 'your_excel_file.xlsx'
+wb = xw.Book(excel_file)
+
+# Replace 'CorrectSheetName' with the actual sheet name
+sheet_name = 'CorrectSheetName'
+sheet = wb.sheets[sheet_name]
+
+# Function to check if a range is empty
+def is_range_empty(sheet, start_row, end_row):
+    values = sheet.range((start_row, 1), (end_row, sheet.cells(start_row, 1).end('right').column)).value
+    return all(all(cell is None for cell in row) for row in values)
+
+# Function to export a range to PDF
+def export_range_to_pdf(sheet, start_row, end_row, pdf_path):
+    if not is_range_empty(sheet, start_row, end_row):
+        sheet.range((start_row, 1), (end_row, sheet.cells(start_row, 1).end('right').column)).api.ExportAsFixedFormat(0, pdf_path)
+    else:
+        print(f"Skipping empty range {start_row} to {end_row}")
+
+# Function to extract tables as fixed number of rows and export them to PDFs
+# You can use the number of total rows in the function, if available
+def extract_and_export_tables(sheet, rows_per_table=28):
+    total_rows = sheet.cells.last_cell.row
+    current_table_start = 1
+
+    while current_table_start <= total_rows:
+        current_table_end = min(current_table_start + rows_per_table - 1, total_rows)
+        pdf_path = f'table_{current_table_start}_{current_table_end}.pdf'
+        export_range_to_pdf(sheet, current_table_start, current_table_end, pdf_path)
+        current_table_start = current_table_end + 1
+
+# Run the function
+extract_and_export_tables(sheet)
+
+print("All tables have been exported as PDFs with original formatting.")
